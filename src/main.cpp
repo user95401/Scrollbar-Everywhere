@@ -1,92 +1,102 @@
 #include <Geode/Geode.hpp>
+#include <alphalaneous.alphas_geode_utils/include/NodeModding.h>
 
 using namespace geode::prelude;
 
-#define public_cast(value, member) [](auto* v) { \
-	class FriendClass__; \
-	using T = std::remove_pointer<decltype(v)>::type; \
-	class FriendeeClass__: public T { \
-	protected: \
-		friend FriendClass__; \
-	}; \
-	class FriendClass__ { \
-	public: \
-		auto& get(FriendeeClass__* v) { return v->member; } \
-	} c; \
-	return c.get(reinterpret_cast<FriendeeClass__*>(v)); \
-}(value)
+void addScrollBarToNode(CCNode* self, float offset, CCNode* addTo) {
+	if (self->getUserObject("scrollbar"_spr)) return;
+	CCNode* parent = self->getParent();
+	if (!addTo) addTo = parent;
 
-#include <Geode/modify/CCNode.hpp>
-class $modify(ScrollbarsExt, CCNode) {
+	if (typeinfo_cast<GJListLayer*>(addTo)) {
+		offset += 20;
+	}
 
-	void addChild(CCNode * pChild) {
+	CCScrollLayerExt* scrollLayer = reinterpret_cast<CCScrollLayerExt*>(self);
 
-		CCNode::addChild(pChild);
+	Scrollbar* scrollbar = Scrollbar::create(scrollLayer);
+	scrollbar->setID("scrollbar"_spr);
+	scrollbar->setAnchorPoint(scrollLayer->getAnchorPoint());
+	scrollbar->setZOrder(100);
+	addTo->addChild(scrollbar);
 
-		Ref _child = pChild;
-		Ref _this = this;
+	if (typeinfo_cast<AnchorLayout*>(parent->getLayout())) {
 
-		queueInMainThread(
-			[_this, _child] {
-				if (!_this or !_child) return;
+		Anchor anchor = Anchor::Right;
+		CCPoint anchorPoint = {0.5, 0.5};
+		if (AnchorLayoutOptions* options = typeinfo_cast<AnchorLayoutOptions*>(self->getLayoutOptions())) {
+			if (options->getAnchor() == Anchor::Bottom) {
+				anchor = Anchor::BottomRight;
+				anchorPoint = CCPoint{0.5, 0};
+			}
+			if (options->getAnchor() == Anchor::Top) {
+				anchor = Anchor::TopRight;
+				anchorPoint = CCPoint{0.5, 1};
+			}
+		}
+		scrollbar->setAnchorPoint(anchorPoint);
+		scrollbar->setLayoutOptions(AnchorLayoutOptions::create()->setAnchor(anchor)->setOffset({offset, 0}));
+		parent->updateLayout();
+	}
+	else {
+		scrollbar->ignoreAnchorPointForPosition(scrollLayer->isIgnoreAnchorPointForPosition());
+		scrollbar->setPosition(
+			scrollLayer->getPositionX() + offset + scrollLayer->getContentWidth(),
+			scrollLayer->getPositionY()
+		);
+	}
 
-				if (Ref bar = typeinfo_cast<Scrollbar*>(_child.data())) {
+	//very evil, but is one size fits all since it is always added last and likely wont affect touch prio handling badly, here be dragons - Alphalaneous
+	if (auto delegate = typeinfo_cast<CCTouchDelegate*>(scrollbar)) {
+		if (auto handler = CCTouchDispatcher::get()->findHandler(delegate)) {
+			CCTouchDispatcher::get()->setPriority(-1000, delegate);
+		}
+	}
+};
 
-					findFirstChildRecursive<Scrollbar>(
-						_this->getParent() ? _this->getParent() : _this, [_this, bar](Scrollbar* asd) {
-							if (!_this or !bar or !asd) return false;
-							
-							//fucking protected members.
-							Ref main_tar = public_cast(bar.data(), m_target);
-							Ref this_tar = public_cast(asd, m_target);
+void addScrollbar(CCNode* scrollLayer, float offset = 6.f, CCNode* addTo = nullptr) {
+	if (addTo){
+		addScrollBarToNode(scrollLayer, offset, addTo);
+	}
+	else {
+		queueInMainThread([self = Ref(scrollLayer), offset, addToRef = Ref(addTo)] {
+			addScrollBarToNode(self, offset, addToRef);
+		});
+	}
+}
 
-							if (asd != bar) if (main_tar == this_tar) {
-								if (asd and string::contains(Ref(asd)->getID(), getMod()->getID())) {
-									Ref(asd)->removeFromParentAndCleanup(0);
-								}
-							};
+class ScrollbarProMax : public geode::Scrollbar {
+	public:
+	CCScrollLayerExt* getTarget() {
+		return m_target;
+	}
+};
 
-							return false;
-						}
-					);
+class $nodeModify(MyScrollBar, geode::Scrollbar) {
+	void modify() {
+		ScrollbarProMax* scrollbar = reinterpret_cast<ScrollbarProMax*>(this);
+		scrollbar->getTarget()->setUserObject("scrollbar"_spr, scrollbar);
+	}
+};
 
+class $nodeModify(MyScrollLayer, geode::ScrollLayer) {
+	void modify() {
+		addScrollbar(this, 7.5f);
+	}
+};
+
+class $nodeModify(MyTableView, TableView) {
+	void modify() {
+		queueInMainThread([self = Ref(this)] {
+			CCNode* parent = nullptr;
+			if (CCNode* parent1 = self->getParent()) {
+				if (CCNode* parent2 = parent1->getParent()) {
+					parent = parent2;
 				}
-
-				if (Ref scroll = typeinfo_cast<CCScrollLayerExt*>(_child.data())) {
-
-					auto offset = 6.f;
-					if ("special offsets") {
-						auto& q = offset;
-						auto id = !_this ? "" : _this->getID();
-						auto pID = !_this->getParent() ? "" : _this->getParent()->getID();
-						auto pTYPE = std::string(!_this->getParent() ? pID : typeid(*_this->getParent()).name());
-						q = (id == "ModList") ? (412.000 - 350.000) : q;
-						q = (id == "list-view") ? (348.000 - 340.000) : q;
-						q = (string::contains(pTYPE, "GJListLayer")) ? (385.000 - 356.000) : q;
-					}
-
-					if (!findFirstChildRecursive<Scrollbar>(
-						_this->getParent() ? _this->getParent() : _this, [scroll](Scrollbar* asd) {
-							//fucking protected members.
-							Ref target = public_cast(asd, m_target);
-							return target.data() == scroll.data();
-						}
-					)) {
-						Ref scrollbar = Scrollbar::create(scroll);
-						scrollbar->setPosition(
-							scroll->getPositionX() + offset + scroll->getContentWidth(),
-							scroll->getPositionY() + scroll->getContentHeight() / 2
-						);
-						scrollbar->setID("scrollbar"_spr);
-						_this->insertAfter(scrollbar, _child);
-						handleTouchPriorityWith(scrollbar, -1000, 1);
-					};
-
-				};//scroll
-
-			}//queue lb
-		);//queueInMainThread
-
-	}//addChild
-
+			}
+			if (parent) {
+				addScrollbar(self, 2.f, parent);
+			}
+		});
+	}
 };
