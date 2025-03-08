@@ -19,8 +19,8 @@
 	},
 	"dependencies": [
 		{
-			"id": "geode.node-ids",
-			"version": ">=1.18.0",
+			"id": "alphalaneous.alphas_geode_utils",
+			"version": ">=1.0.4",
 			"importance": "required"
 		}
 	]
