@@ -40,18 +40,14 @@ void addScrollBarToNode(CCNode* self, float offset, CCNode* addTo) {
 	}
 	else {
 		scrollbar->ignoreAnchorPointForPosition(scrollLayer->isIgnoreAnchorPointForPosition());
+		float anchorX = scrollLayer->isIgnoreAnchorPointForPosition() ? 0 : scrollLayer->getAnchorPoint().x;
 		scrollbar->setPosition(
-			scrollLayer->getPositionX() + offset + scrollLayer->getContentWidth(),
+			scrollLayer->getPositionX() - (scrollLayer->getContentWidth() * anchorX) + offset + scrollLayer->getContentWidth(),
 			scrollLayer->getPositionY()
 		);
 	}
 
-	//very evil, but is one size fits all since it is always added last and likely wont affect touch prio handling badly, here be dragons - Alphalaneous
-	if (auto delegate = typeinfo_cast<CCTouchDelegate*>(scrollbar)) {
-		if (auto handler = CCTouchDispatcher::get()->findHandler(delegate)) {
-			CCTouchDispatcher::get()->setPriority(-1000, delegate);
-		}
-	}
+	handleTouchPriority(addTo);
 };
 
 void addScrollbar(CCNode* scrollLayer, float offset = 6.f, CCNode* addTo = nullptr) {
@@ -72,20 +68,35 @@ class ScrollbarProMax : public geode::Scrollbar {
 	}
 };
 
-class $nodeModify(MyScrollBar, geode::Scrollbar) {
-	void modify() {
-		ScrollbarProMax* scrollbar = reinterpret_cast<ScrollbarProMax*>(this);
-		scrollbar->getTarget()->setUserObject("scrollbar"_spr, scrollbar);
-	}
-};
-
 class $nodeModify(MyScrollLayer, geode::ScrollLayer) {
+
+	struct Fields {
+		geode::Scrollbar* m_scrollbar;
+		~Fields() {
+			if (m_scrollbar) {
+				m_scrollbar->setTarget(nullptr);
+				m_scrollbar->removeFromParent();
+			}
+		}
+	};
+
 	void modify() {
 		addScrollbar(this, 7.5f);
 	}
 };
 
 class $nodeModify(MyTableView, TableView) {
+
+	struct Fields {
+		geode::Scrollbar* m_scrollbar;
+		~Fields() {
+			if (m_scrollbar) {
+				m_scrollbar->setTarget(nullptr);
+				m_scrollbar->removeFromParent();
+			}
+		}
+	};
+
 	void modify() {
 		queueInMainThread([self = Ref(this)] {
 			CCNode* parent = nullptr;
@@ -98,5 +109,18 @@ class $nodeModify(MyTableView, TableView) {
 				addScrollbar(self, 2.f, parent);
 			}
 		});
+	}
+};
+
+class $nodeModify(MyScrollBar, geode::Scrollbar) {
+	void modify() {
+		ScrollbarProMax* scrollbar = reinterpret_cast<ScrollbarProMax*>(this);
+		if (TableView* tableView = typeinfo_cast<TableView*>(scrollbar->getTarget())) {
+			reinterpret_cast<MyTableView*>(tableView)->m_fields->m_scrollbar = scrollbar;
+		}
+		if (ScrollLayer* scrollLayer = typeinfo_cast<ScrollLayer*>(scrollbar->getTarget())) {
+			reinterpret_cast<MyScrollLayer*>(scrollLayer)->m_fields->m_scrollbar = scrollbar;
+		}
+		scrollbar->getTarget()->setUserObject("scrollbar"_spr, scrollbar);
 	}
 };
