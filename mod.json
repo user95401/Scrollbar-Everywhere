@@ -8,7 +8,7 @@
 	},
 	"id": "user95401.scrollbar_everywhere",
 	"name": "Scrollbar Everywhere!",
-	"version": "v2.0.0",
+	"version": "v2.1.0",
 	"developers": [ "user95401", "Alphalaneous" ],
 	"description": "Scrollbar. Everywhere, for every scroll view.",
 	"tags": [ "universal", "interface", "utility" ],
