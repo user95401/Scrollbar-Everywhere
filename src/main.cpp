@@ -46,8 +46,6 @@ void addScrollBarToNode(CCNode* self, float offset, CCNode* addTo) {
 			scrollLayer->getPositionY()
 		);
 	}
-
-	handleTouchPriority(addTo);
 };
 
 void addScrollbar(CCNode* scrollLayer, float offset = 6.f, CCNode* addTo = nullptr) {
