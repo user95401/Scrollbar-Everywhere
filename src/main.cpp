@@ -8,7 +8,7 @@ void addScrollBarToNode(CCNode* self, float offset, CCNode* addTo) {
 	CCNode* parent = self->getParent();
 	if (!addTo) addTo = parent;
 
-	if (CopySizeLayout* copySizeLayout = typeinfo_cast<CopySizeLayout*>(addTo->getLayout())) {
+	if (typeinfo_cast<CopySizeLayout*>(addTo->getLayout())) {
 		return;
 	}
 
