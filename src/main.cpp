@@ -8,6 +8,10 @@ void addScrollBarToNode(CCNode* self, float offset, CCNode* addTo) {
 	CCNode* parent = self->getParent();
 	if (!addTo) addTo = parent;
 
+	if (typeinfo_cast<CopySizeLayout*>(addTo->getLayout())) {
+		return;
+	}
+
 	if (typeinfo_cast<GJListLayer*>(addTo)) {
 		offset += 20;
 	}
