@@ -5,8 +5,12 @@ using namespace geode::prelude;
 
 void addScrollBarToNode(CCNode* self, float offset, CCNode* addTo) {
 	if (self->getUserObject("scrollbar"_spr)) return;
+
 	CCNode* parent = self->getParent();
 	if (!addTo) addTo = parent;
+
+	if (!addTo) return;
+	if (!typeinfo_cast<CCNode*>(addTo)) return;
 
 	if (typeinfo_cast<CopySizeLayout*>(addTo->getLayout())) {
 		return;
@@ -16,13 +20,26 @@ void addScrollBarToNode(CCNode* self, float offset, CCNode* addTo) {
 		offset += 20;
 	}
 
-	CCScrollLayerExt* scrollLayer = reinterpret_cast<CCScrollLayerExt*>(self);
+	CCScrollLayerExt* scrollLayer = typeinfo_cast<CCScrollLayerExt*>(self);
+	if (!scrollLayer) return;
 
 	Scrollbar* scrollbar = Scrollbar::create(scrollLayer);
+	if (!scrollbar) return;
 	scrollbar->setID("scrollbar"_spr);
 	scrollbar->setAnchorPoint(scrollLayer->getAnchorPoint());
 	scrollbar->setZOrder(100);
 	addTo->addChild(scrollbar);
+
+	addTo->runAction(CCRepeatForever::create(CCSequence::create(CallFuncExt::create(
+		[scrollbar = Ref(scrollbar), scrollLayer = Ref(scrollLayer)] {
+			if (scrollbar) {
+				if (!scrollLayer) scrollbar->removeFromParent();
+				scrollbar->setVisible(
+					scrollLayer->isVisible() and scrollLayer->isTouchEnabled() and not scrollLayer->m_disableMovement
+				);
+			}
+		}
+	), nullptr)));
 
 	if (typeinfo_cast<AnchorLayout*>(parent->getLayout())) {
 
